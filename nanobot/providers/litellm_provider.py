@@ -31,15 +31,25 @@ class LiteLLMProvider(LLMProvider):
             (api_key and api_key.startswith("sk-or-")) or
             (api_base and "openrouter" in api_base)
         )
-        
-        # Track if using custom endpoint (vLLM, etc.)
-        self.is_vllm = bool(api_base) and not self.is_openrouter
-        
+
+        # Detect Anthropic with custom base URL (third-party proxy)
+        self.is_anthropic_proxy = (
+            bool(api_base) and
+            not self.is_openrouter and
+            "anthropic" in default_model
+        )
+
+        # Track if using custom endpoint (vLLM, etc.) - exclude Anthropic proxy
+        self.is_vllm = bool(api_base) and not self.is_openrouter and not self.is_anthropic_proxy
+
         # Configure LiteLLM based on provider
         if api_key:
             if self.is_openrouter:
                 # OpenRouter mode - set key
                 os.environ["OPENROUTER_API_KEY"] = api_key
+            elif self.is_anthropic_proxy:
+                # Anthropic with custom base URL (third-party proxy)
+                os.environ["ANTHROPIC_API_KEY"] = api_key
             elif self.is_vllm:
                 # vLLM/custom endpoint - uses OpenAI-compatible API
                 os.environ["OPENAI_API_KEY"] = api_key
